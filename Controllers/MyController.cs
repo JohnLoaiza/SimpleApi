@@ -101,7 +101,7 @@ namespace SimpleApi.Controllers
 
             await collectionL.InsertOneAsync(newDoc);
             // Lógica para insertar los datos
-            return Ok(new { Message = $"Datos insertados en la ruta: {project} y coleccion {collection}" });
+            return Ok(new { Message = $"Datos insertados en la ruta: {project} y coleccion {collection}",id = newDoc.Id });
         }
 
         // Endpoint PUT para actualizar datos usando ID
