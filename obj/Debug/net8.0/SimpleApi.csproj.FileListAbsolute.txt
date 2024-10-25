@@ -72,3 +72,4 @@
 /Users/mac/Desktop/Universidad/PDsoftware/SimpleApi/bin/Debug/net8.0/Microsoft.AspNetCore.JsonPatch.dll
 /Users/mac/Desktop/Universidad/PDsoftware/SimpleApi/bin/Debug/net8.0/Microsoft.AspNetCore.Mvc.NewtonsoftJson.dll
 /Users/mac/Desktop/Universidad/PDsoftware/SimpleApi/bin/Debug/net8.0/Newtonsoft.Json.Bson.dll
+/Users/mac/Desktop/Universidad/PDsoftware/SimpleApi/bin/Debug/net8.0/BCrypt.Net-Next.dll
