@@ -3,6 +3,10 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using System.Text.Json;
 using BCrypt.Net;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Text;
 namespace SimpleApi.Controllers
 {
     [ApiController]
@@ -201,9 +205,9 @@ namespace SimpleApi.Controllers
         // Método POST para verificar una contraseña
         [HttpPost("verify")]
         public async Task<IActionResult> VerifyEncryptAsync(
-            [FromRoute] string project,
-            [FromRoute] string collection,
-            [FromBody] JsonElement body)
+    [FromRoute] string project,
+    [FromRoute] string collection,
+    [FromBody] JsonElement body)
         {
             if (string.IsNullOrEmpty(project) || string.IsNullOrEmpty(collection))
             {
@@ -230,7 +234,7 @@ namespace SimpleApi.Controllers
 
             if (document == null)
             {
-                return NotFound(new {success = false, Message = $"No se encontró el documento con {parameterName}: {valueToCompare} en la colección {collection} del proyecto {project}." });
+                return NotFound(new { success = false, Message = $"No se encontró el documento con {parameterName}: {valueToCompare} en la colección {collection} del proyecto {project}." });
             }
 
             // Obtener la contraseña encriptada almacenada en el documento
@@ -241,18 +245,115 @@ namespace SimpleApi.Controllers
 
                 if (isPasswordMatch)
                 {
-                    return Ok(new {success = true, id= document.Id, Message = "Las contraseñas coinciden." });
+                    // Generar JWT
+                    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your_256_bit_secret_key_here_which_is_at_least_32_characters_long"));
+                    var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+                    var claims = new[]
+                    {
+                new Claim(JwtRegisteredClaimNames.Sub, document.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+                    var token = new JwtSecurityToken(
+                        issuer: "your_issuer_here", // Define tu emisor
+                        audience: "your_audience_here", // Define tu audiencia
+                        claims: claims,
+                        expires: DateTime.UtcNow.AddHours(1), // Tiempo de expiración
+                        signingCredentials: creds
+                    );
+
+                    var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+
+                    return Ok(new { success = true, id = document.Id, Message = "Las contraseñas coinciden.", Token = jwt });
                 }
                 else
                 {
-                    return Unauthorized(new {success = false, Message = "Las contraseñas no coinciden." });
+                    return Unauthorized(new { success = false, Message = "Las contraseñas no coinciden." });
                 }
             }
             else
             {
-                return BadRequest(new {success = false, Message = $"El campo de contraseña {passwordField} no existe en el documento." });
+                return BadRequest(new { success = false, Message = $"El campo de contraseña {passwordField} no existe en el documento." });
             }
         }
 
+
+        // Método para verificar si el JWT está vigente
+        [HttpPost("verify-token")]
+        public IActionResult VerifyToken([FromBody] JsonElement body)
+        {
+            try
+            {
+                string token = body.GetProperty("token").GetString() ?? string.Empty;
+
+                var result = IsTokenValid(token);
+
+                if (result.IsValid)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "El token es válido.",
+                        timeRemaining = result.TimeRemaining
+                    });
+                }
+                else
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        message = "El token ha expirado o es inválido."
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest(new { success = false, message = "Hubo un error al procesar el token." });
+            }
+        }
+
+        // Método auxiliar para verificar si el JWT está vigente
+        private (bool IsValid, string TimeRemaining) IsTokenValid(string token)
+        {
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var jsonToken = handler.ReadToken(token) as JwtSecurityToken;
+
+                if (jsonToken == null)
+                {
+                    return (false, string.Empty);
+                }
+
+                // Obtener el claim de expiración (exp) del token
+                var expiration = jsonToken?.Claims.FirstOrDefault(c => c.Type == "exp")?.Value;
+
+                if (string.IsNullOrEmpty(expiration))
+                {
+                    return (false, string.Empty);
+                }
+
+                // Convertir la fecha de expiración a DateTime
+                var expirationDate = DateTimeOffset.FromUnixTimeSeconds(long.Parse(expiration)).UtcDateTime;
+
+                // Calcular el tiempo restante
+                var timeRemaining = expirationDate - DateTime.UtcNow;
+
+                if (timeRemaining > TimeSpan.Zero)
+                {
+                    return (true, timeRemaining.ToString(@"hh\:mm\:ss"));
+                }
+                else
+                {
+                    return (false, string.Empty);
+                }
+            }
+            catch (Exception)
+            {
+                // Si el token no es válido o si ocurre algún error, lo consideramos como inválido
+                return (false, string.Empty);
+            }
+        }
     }
 }
