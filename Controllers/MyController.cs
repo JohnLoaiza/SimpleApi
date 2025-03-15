@@ -37,9 +37,15 @@ namespace SimpleApi.Controllers
                 JsonValueKind.True => true,
                 JsonValueKind.False => false,
                 JsonValueKind.Null => null,
-                _ => element.GetRawText() // Para otros tipos como objetos o arreglos, se puede ajustar según se necesite
+                JsonValueKind.Object => element.EnumerateObject()
+                                               .ToDictionary(prop => prop.Name, prop => ConvertJsonElementToType(prop.Value)),
+                JsonValueKind.Array => element.EnumerateArray()
+                                              .Select(ConvertJsonElementToType)
+                                              .ToList(),
+                _ => throw new NotSupportedException($"Tipo de JSON no soportado: {element.ValueKind}")
             };
         }
+
 
 
         // Endpoint GET para manejar solicitudes GET con rutas dinámicas
@@ -82,6 +88,7 @@ namespace SimpleApi.Controllers
         [HttpPost("insert")]
         public async Task<IActionResult> InsertAsync([FromRoute] string project, [FromRoute] string collection, [FromBody] JsonElement body)
         {
+            
             if (string.IsNullOrEmpty(project))
             {
                 return BadRequest("Ruta no especificada.");
