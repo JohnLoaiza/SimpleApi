@@ -13,7 +13,7 @@ namespace SimpleApi.Controllers
     [Route("[controller]/{project?}/{collection?}")] // Ruta base con un parámetro de ruta opcional
     public class DynamicController : ControllerBase
     {
-        private string connectionString = "mongodb://localhost:27017";
+        private string connectionString = "mongodb+srv://jhon91811:CWFFyqphmgKv5nFl@cluster0.hkyi7.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";  //"mongodb://localhost:27017";
         private MongoClient? client;
         private IMongoDatabase? database;
 
@@ -45,8 +45,6 @@ namespace SimpleApi.Controllers
                 _ => throw new NotSupportedException($"Tipo de JSON no soportado: {element.ValueKind}")
             };
         }
-
-
 
         // Endpoint GET para manejar solicitudes GET con rutas dinámicas
         [HttpGet]
@@ -106,7 +104,7 @@ namespace SimpleApi.Controllers
             Model newDoc = new Model
             {
                 Id = ObjectId.GenerateNewId().ToString(), // Generar un nuevo ObjectId para el usuario
-                propierties = documento
+                properties = documento
             };
 
 
@@ -131,8 +129,8 @@ namespace SimpleApi.Controllers
             var updates = new List<UpdateDefinition<Model>>();
             foreach (JsonProperty property in body.EnumerateObject())
             {
-                // Agregar cada propiedad como una actualización dentro del diccionario 'propierties', con conversión de tipo
-                updates.Add(Builders<Model>.Update.Set($"propierties.{property.Name}", ConvertJsonElementToType(property.Value)));
+                // Agregar cada propiedad como una actualización dentro del diccionario 'properties', con conversión de tipo
+                updates.Add(Builders<Model>.Update.Set($"properties.{property.Name}", ConvertJsonElementToType(property.Value)));
             }
 
             // Combinar todas las actualizaciones en una sola definición
@@ -236,7 +234,7 @@ namespace SimpleApi.Controllers
             var collectionL = GetCollection(project, collection)!;
 
             // Filtro para buscar el documento
-            var filter = Builders<Model>.Filter.Eq($"propierties.{parameterName}", valueToCompare);
+            var filter = Builders<Model>.Filter.Eq($"properties.{parameterName}", valueToCompare);
             var document = await collectionL.Find(filter).FirstOrDefaultAsync();
 
             if (document == null)
@@ -245,7 +243,7 @@ namespace SimpleApi.Controllers
             }
 
             // Obtener la contraseña encriptada almacenada en el documento
-            if (document.propierties.TryGetValue(passwordField, out var hashedPassword) && hashedPassword is string hashedPasswordString)
+            if (document.properties.TryGetValue(passwordField, out var hashedPassword) && hashedPassword is string hashedPasswordString)
             {
                 // Verificar la contraseña
                 bool isPasswordMatch = BCrypt.Net.BCrypt.Verify(password, hashedPasswordString);
