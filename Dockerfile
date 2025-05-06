@@ -2,21 +2,24 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Copia los archivos de proyecto y restaura las dependencias
-COPY *.csproj ./
-RUN dotnet restore
+# Copia los archivos de solución y de proyecto
+COPY *.sln ./
+COPY */*.csproj ./
 
-# Copia el resto del código y compila
+# Restaura dependencias
+RUN dotnet restore SimpleApi.sln
+
+# Copia el resto del código
 COPY . ./
-RUN dotnet publish -c Release -o out
+
+# Publica el proyecto principal (ajusta el path si está en una subcarpeta)
+RUN dotnet publish ./SimpleApi/SimpleApi.csproj -c Release -o out
 
 # Etapa 2: runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/out ./
 
-# Expone el puerto (ajústalo si usas otro)
 EXPOSE 80
 
-# Comando de arranque
 ENTRYPOINT ["dotnet", "SimpleApi.dll"]
